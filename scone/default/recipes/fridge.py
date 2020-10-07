@@ -8,11 +8,15 @@ from urllib.request import urlretrieve
 from scone.common.misc import sha256_file
 from scone.common.modeutils import DEFAULT_MODE_FILE, parse_mode
 from scone.default.steps import fridge_steps
-from scone.default.steps.fridge_steps import FridgeMetadata, load_and_transform, SUPERMARKET_RELATIVE
-from scone.default.utensils.basic_utensils import WriteFile, Chown
-from scone.head import Head
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation, Recipe
+from scone.default.steps.fridge_steps import (
+    SUPERMARKET_RELATIVE,
+    FridgeMetadata,
+    load_and_transform,
+)
+from scone.default.utensils.basic_utensils import Chown, WriteFile
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type
 
 
@@ -23,8 +27,9 @@ class FridgeCopy(Recipe):
 
     _NAME = "fridge-copy"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head: Head):
+        super().__init__(recipe_context, args, head)
+
         fp = fridge_steps.search_in_fridge(head, args["src"])
         if fp is None:
             raise ValueError(f"Cannot find {args['src']} in the fridge.")
@@ -44,7 +49,7 @@ class FridgeCopy(Recipe):
         mode = args.get("mode", DEFAULT_MODE_FILE)
         assert isinstance(mode, str) or isinstance(mode, int)
 
-        self.fridge_path: str = args["src"]
+        self.fridge_path: str = check_type(args["src"], str)
         self.real_path: Path = fp
         self.fridge_meta: FridgeMetadata = meta
         self.mode = parse_mode(mode, directory=False)
@@ -56,7 +61,7 @@ class FridgeCopy(Recipe):
 
     async def cook(self, k: Kitchen) -> None:
         data = await load_and_transform(
-            k, self.fridge_meta, self.real_path, self.get_host()
+            k, self.fridge_meta, self.real_path, self.recipe_context.sous
         )
         dest_str = str(self.destination)
         chan = await k.start(WriteFile(dest_str, self.mode))
@@ -69,9 +74,7 @@ class FridgeCopy(Recipe):
         # hash_of_data = sha256_bytes(data)
         # k.get_dependency_tracker().register_remote_file(dest_str, hash_of_data)
 
-        await k.get_dependency_tracker().register_fridge_file(
-            self.fridge_path, self.real_path
-        )
+        k.get_dependency_tracker().register_fridge_file(self.fridge_path)
 
 
 class Supermarket(Recipe):
@@ -84,8 +87,8 @@ class Supermarket(Recipe):
     # dict of target path → future that will complete when it's downloaded
     in_progress: Dict[str, Future] = dict()
 
-    def __init__(self, host: str, slug: str, args: dict, head: "Head"):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
         self.url = args.get("url")
         assert isinstance(self.url, str)
 
@@ -101,7 +104,7 @@ class Supermarket(Recipe):
         else:
             self.destination = Path(args["dest"]).resolve()
 
-        self.owner = check_type(args.get("owner", self.get_user(head)), str)
+        self.owner = check_type(args.get("owner", self.recipe_context.user), str)
         self.group = check_type(args.get("group", self.owner), str)
 
         mode = args.get("mode", DEFAULT_MODE_FILE)
@@ -115,7 +118,9 @@ class Supermarket(Recipe):
     async def cook(self, kitchen: "Kitchen"):
         # need to ensure we download only once, even in a race…
 
-        supermarket_path = Path(kitchen.head.directory, SUPERMARKET_RELATIVE, self.sha256)
+        supermarket_path = Path(
+            kitchen.head.directory, SUPERMARKET_RELATIVE, self.sha256
+        )
 
         if self.sha256 in Supermarket.in_progress:
             await Supermarket.in_progress[self.sha256]
@@ -136,7 +141,7 @@ Downloaded by {self}
                     self.url,
                     str(supermarket_path),
                     self.sha256,
-                    note
+                    note,
                 ),
             )
 

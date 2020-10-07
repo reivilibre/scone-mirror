@@ -3,7 +3,9 @@
 # import sys
 # from typing import List
 #
-# from scone.head import Head, Recipe
+# from scone.head.head import Head
+# from scone.head.recipe import Recipe
+
 # from scone.head.kitchen import Kitchen
 # from scone.head.recipe import Preparation
 

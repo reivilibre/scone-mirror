@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Optional
 
 ExpressionPart = NamedTuple("ExpressionPart", [("kind", str), ("value", str)])
 
@@ -84,8 +84,9 @@ def merge_right_into_left_inplace(left: dict, right: dict):
 
 
 class Variables:
-    def __init__(self):
+    def __init__(self, delegate: Optional["Variables"]):
         self._vars: Dict[str, Any] = {}
+        self._delegate: Optional[Variables] = delegate
 
     def get_dotted(self, name: str) -> Any:
         current = self._vars
@@ -95,6 +96,8 @@ class Variables:
                 current = current[k]
             return current
         except KeyError:
+            if self._delegate:
+                return self._delegate.get_dotted(name)
             raise KeyError("No variable: " + name)
 
     def has_dotted(self, name: str) -> bool:
@@ -102,6 +105,8 @@ class Variables:
             self.get_dotted(name)
             return True
         except KeyError:
+            if self._delegate:
+                return self._delegate.has_dotted(name)
             return False
 
     def set_dotted(self, name: str, value: Any):

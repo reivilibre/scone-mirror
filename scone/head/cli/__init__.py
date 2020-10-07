@@ -8,10 +8,10 @@ from pathlib import Path
 
 from scone.common.misc import eprint
 from scone.common.pools import Pools
-from scone.head import Head
-from scone.head.dependency_tracking import DependencyCache, run_dep_checks
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation, Recipe
+from scone.head import dot_emitter
+from scone.head.dependency_tracking import DependencyCache
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
 
 
 def cli() -> None:
@@ -64,43 +64,38 @@ async def cli_async() -> int:
 
         eprint(f"Selected the following souss: {', '.join(hosts)}")
 
-        recipes_by_sous = head.construct_recipes()
-
-        recipes_to_do = []
-        for sous in hosts:
-            recipes_to_do += recipes_by_sous.get(sous, [])
-
-        eprint(f"Preparing {len(recipes_to_do)} recipes…")
-        prepare = Preparation(recipes_to_do)
+        eprint("Preparing recipes…")
+        prepare = Preparation(head)
 
         start_ts = time.monotonic()
-        order = prepare.prepare(head)
-        notifying_provides = prepare.notifying_provides
+        prepare.prepare_all()
         del prepare
         end_ts = time.monotonic()
         eprint(f"Preparation completed in {end_ts - start_ts:.3f} s.")
-        eprint(f"{len(order)} courses planned.")
+        # eprint(f"{len(order)} courses planned.")
+
+        dot_emitter.emit_dot(head.dag, Path(cdir, "dag.0.dot"))
 
         dep_cache = await DependencyCache.open(
             os.path.join(head.directory, "depcache.sqlite3")
         )
 
-        eprint("Checking dependency cache…")
-        start_ts = time.monotonic()
-        depchecks = await run_dep_checks(head, dep_cache, order)
-        end_ts = time.monotonic()
-        eprint(f"Checking finished in {end_ts - start_ts:.3f} s.")  # TODO show counts
-
-        for epoch, items in enumerate(order):
-            print(f"----- Course {epoch} -----")
-
-            for item in items:
-                if isinstance(item, Recipe):
-                    state = depchecks[item].label.name
-                    print(f" > recipe ({state}) {item}")
-                elif isinstance(item, tuple):
-                    kind, ident, extra = item
-                    print(f" - we now have {kind} {ident} {dict(extra)}")
+        # eprint("Checking dependency cache…")
+        # start_ts = time.monotonic()
+        # depchecks = await run_dep_checks(head, dep_cache, order)
+        # end_ts = time.monotonic()
+        # eprint(f"Checking finished in {end_ts - start_ts:.3f} s.")  # TODO show counts
+        #
+        # for epoch, items in enumerate(order):
+        #     print(f"----- Course {epoch} -----")
+        #
+        #     for item in items:
+        #         if isinstance(item, Recipe):
+        #             state = depchecks[item].label.name
+        #             print(f" > recipe ({state}) {item}")
+        #         elif isinstance(item, tuple):
+        #             kind, ident, extra = item
+        #             print(f" - we now have {kind} {ident} {dict(extra)}")
 
         eprint("Ready to cook? [y/N]: ", end="")
         if argp.yes:
@@ -110,16 +105,21 @@ async def cli_async() -> int:
                 eprint("Stopping.")
                 return 101
 
-        kitchen = Kitchen(head, dep_cache, notifying_provides)
+        kitchen = Kitchen(head, dep_cache)
 
-        for epoch, epoch_items in enumerate(order):
-            print(f"Cooking Course {epoch} of {len(order)}")
-            await kitchen.run_epoch(
-                epoch_items, depchecks, concurrency_limit_per_host=8
-            )
+        # for epoch, epoch_items in enumerate(order):
+        #     print(f"Cooking Course {epoch} of {len(order)}")
+        #     await kitchen.run_epoch(
+        #         epoch_items, depchecks, concurrency_limit_per_host=8
+        #     )
+        #
+        # for sous in hosts: TODO this is not definitely safe
+        #     await dep_cache.sweep_old(sous)
 
-        for sous in hosts:
-            await dep_cache.sweep_old(sous)
+        try:
+            await kitchen.cook_all()
+        finally:
+            dot_emitter.emit_dot(head.dag, Path(cdir, "dag.9.dot"))
 
         return 0
     finally:

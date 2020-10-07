@@ -27,7 +27,8 @@ REQUIRED = [
     "toml~=0.10.1",
     "attrs~=19.3.0",
     "cattrs~=1.0.0",
-    "canonicaljson~=1.2.0"
+    "canonicaljson~=1.2.0",
+    "immutabledict==1.0.0"
 ]
 
 

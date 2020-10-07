@@ -27,7 +27,7 @@ async def open_ssh_sous(
     client_key: Optional[str],
     requested_user: str,
     sous_command: str,
-    debug_logging: bool = False
+    debug_logging: bool = False,
 ) -> Tuple[ChanPro, Channel]:
     if client_key:
         opts = SSHClientConnectionOptions(username=user, client_keys=[client_key])
@@ -42,8 +42,11 @@ async def open_ssh_sous(
         command = sous_command
 
     if debug_logging:
-        command = f"tee /tmp/sconnyin-{requested_user} | {command} 2>/tmp/sconnyerr-{requested_user} " \
-                  f"| tee /tmp/sconnyout-{requested_user}"
+        command = (
+            f"tee /tmp/sconnyin-{requested_user} "
+            f"| {command} 2>/tmp/sconnyerr-{requested_user} "
+            f"| tee /tmp/sconnyout-{requested_user}"
+        )
 
     process: SSHClientProcess = await conn.create_process(command, encoding=None)
 

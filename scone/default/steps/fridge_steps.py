@@ -4,9 +4,8 @@ from typing import List, Optional, Tuple, Union
 
 from jinja2 import Template
 
-from scone.head import Head
+from scone.head.head import Head
 from scone.head.kitchen import Kitchen
-
 
 SUPERMARKET_RELATIVE = ".scone-cache/supermarket"
 

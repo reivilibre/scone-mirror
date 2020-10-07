@@ -2,9 +2,9 @@ from typing import Dict
 
 from scone.default.recipes.filesystem import CommandOnChange
 from scone.default.utensils.basic_utensils import SimpleExec
-from scone.head import Head, Recipe
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type, check_type_opt
 
 
@@ -17,10 +17,11 @@ class SystemdUnit(Recipe):
 
     daemon_reloaders: Dict[str, CommandOnChange] = {}
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
-        self.unit_name = slug if "." in slug else slug + ".service"
+        unit = check_type(args.get("unit"), str)
+        self.unit_name = unit if "." in unit else unit + ".service"
         self.at = check_type(args.get("at"), str)
         self.enabled = check_type_opt(args.get("enabled"), bool)
         self.restart_on = check_type_opt(args.get("restart_on"), list)
@@ -32,44 +33,49 @@ class SystemdUnit(Recipe):
 
         if self.enabled is not None:
             enable_recipe = SystemdEnabled(
-                self.get_host(),
-                self.unit_name,
-                {"enabled": self.enabled, "at": self.at, ".user": "root"},
-                head,
+                self.recipe_context,
+                {
+                    "unit": self.unit_name,
+                    "enabled": self.enabled,
+                    "at": self.at,
+                    ".user": "root",
+                },
+                None,
             )
             preparation.subrecipe(enable_recipe)
             preparation.needs("systemd-stage", "enabled")
 
-        daemon_reloader = SystemdUnit.daemon_reloaders.get(self.get_host(), None)
+        daemon_reloader = SystemdUnit.daemon_reloaders.get(
+            self.recipe_context.sous, None
+        )
         if not daemon_reloader:
             # TODO this should be replaced with a dedicated command which provides
             #   those units.
             daemon_reloader = CommandOnChange(
-                self.get_host(),
-                "systemd-internal",
+                self.recipe_context,
                 {
                     "purpose": "systemd.daemon_reload",
                     "command": ["systemctl", "daemon-reload"],
                     "files": [],
                     ".user": "root",
                 },
-                head,
+                None,
             )
             preparation.subrecipe(daemon_reloader)
-        file_list = getattr(daemon_reloader, "_args")["files"]
+        # file_list = getattr(daemon_reloader, "_args")["files"]
+        file_list = []  # TODO
         file_list.append(self.at)
 
         if self.restart_on:
             service_reloader = CommandOnChange(
-                self.get_host(),
-                "systemd-internal",
+                self.recipe_context,
                 {
                     "purpose": "systemd.unit_reload",
                     "command": ["systemctl", "reload", self.unit_name],
                     "files": self.restart_on + [self.at],
                     ".user": "root",
                 },
-                head,
+                None,
             )
             preparation.subrecipe(service_reloader)
 
@@ -85,10 +91,11 @@ class SystemdEnabled(Recipe):
 
     _NAME = "systemd-enabled"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
-        self.unit_name = slug if "." in slug else slug + ".service"
+        unit = check_type(args.get("unit"), str)
+        self.unit_name = unit if "." in unit else unit + ".service"
         self.at = check_type(args.get("at"), str)
         self.enabled = check_type_opt(args.get("enabled"), bool)
 

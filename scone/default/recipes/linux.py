@@ -4,9 +4,9 @@ from typing import Optional
 
 from scone.default.steps import linux_steps
 from scone.default.utensils.linux_utensils import GetPasswdEntry
-from scone.head import Head, Recipe
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type, check_type_opt
 
 logger = logging.getLogger(__name__)
@@ -15,12 +15,10 @@ logger = logging.getLogger(__name__)
 class LinuxUser(Recipe):
     _NAME = "os-user"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
-        if slug[0] == "@":
-            raise ValueError("os-user should be used like [os-user.username].")
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
-        self.user_name = slug
+        self.user_name = check_type(args.get("name"), str)
         self.make_group = check_type(args.get("make_group", True), bool)
         self.make_home = check_type(args.get("make_home", True), bool)
         self.home: Optional[str] = check_type_opt(args.get("home"), str)
@@ -62,3 +60,33 @@ class LinuxUser(Recipe):
                 self.make_group,
                 self.home,
             )
+
+
+class DeclareLinuxUser(Recipe):
+    _NAME = "declare-os-user"
+
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
+
+        self.user_name = check_type(args.get("name"), str)
+
+    def prepare(self, preparation: Preparation, head: "Head") -> None:
+        preparation.provides("os-user", self.user_name)
+
+    async def cook(self, kitchen: Kitchen) -> None:
+        kitchen.get_dependency_tracker()
+
+
+class DeclareLinuxGroup(Recipe):
+    _NAME = "declare-os-group"
+
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
+
+        self.name = check_type(args.get("name"), str)
+
+    def prepare(self, preparation: Preparation, head: "Head") -> None:
+        preparation.provides("os-group", self.name)
+
+    async def cook(self, kitchen: Kitchen) -> None:
+        kitchen.get_dependency_tracker()

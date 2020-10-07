@@ -1,0 +1,163 @@
+// root
+Unit:
+  Block
+;
+
+Comment:
+  /#.*$/
+;
+
+Block:
+  directives*=Directive
+  ''
+  recipes+=RecipeOrSubBlock
+;
+
+RecipeOrSubBlock:
+  Recipe | SubBlock
+;
+
+
+SubBlock[ws=' \t']:
+  unique_id=ID '{' human=/.*$/ /\n/+
+  block=Block
+  '}'
+;
+
+
+Directive:
+  UserDirective | SousDirective | ForDirective | ImportDirective |
+  RecipeEdgeDirective | ResourceEdgeDirective | ListenEdgeDirective
+;
+
+UserDirective[ws=' \t']:
+  '@user' '=' user=ID /\n/+
+;
+
+SousDirective[ws=' \t']:
+  '@sous' '=' sous=ID /\n/+
+;
+
+ImportDirective[ws=' \t']:
+  '@import' importee=ID /\n/+
+;
+
+
+ForDirective[ws=' \t']:
+  '@for' loop_variable=DottedIdString 'in'
+    (
+      collection=DottedIdString /\n/+
+    |
+      ':' /\n/
+      list=NaturalList
+    )
+;
+
+ResourceEdgeDirectiveKind:
+  '@needs' | '@wants' | '@provides'
+;
+
+ResourceEdgeDirective[ws=' \t']:
+  kind=ResourceEdgeDirectiveKind
+  resource=Resource
+;
+
+RecipeEdgeDirectiveKind:
+  '@after' | '@before'
+;
+
+RecipeEdgeDirective[ws=' \t']:
+  kind=RecipeEdgeDirectiveKind
+  ':' id=ID
+  // TODO 'on other sous' ?
+;
+
+ListenEdgeDirectiveKind:
+  '@when' | '@only when'
+;
+
+ListenEdgeDirective[ws=' \t']:
+  kind=ListenEdgeDirectiveKind
+  (recipe_id=ID | resource=Resource)
+  'changes'
+;
+
+
+Resource:
+  type=ID '(' (primary=UnquotedString | primary=QuotedString) ')'
+  (extra_params=BraceDict)?
+  ('on' sous=ID)?
+;
+
+
+NaturalList:
+  elements+=NaturalListElement
+;
+
+NaturalListElement[ws=' \t']:
+  //'-' item=KeyExpr /\n/+
+  '-' KeyExpr /\n/+
+;
+
+
+Recipe[ws=' \t']:
+  '[[' kind=DottedIdString (':' unique_id=DottedIdString)? ']]' human=/.*$/ /\n/+
+  directives*=Directive
+  args*=RecipeArgument
+  /\n*/
+;
+
+RecipeArgument[ws=' \t']:
+  name=ID
+  (
+    '=' value=ValueExpr /\n/+
+  |
+    ':' /\n/
+    value=NaturalList
+  )
+;
+
+
+KeyExpr:
+  QuotedString | UnquotedString | Integer
+;
+
+ValueExpr:
+  QuotedString | Integer | Boolean | BracketList | BraceDict | UnquotedString
+;
+
+QuotedString:
+  value=STRING
+;
+
+UnquotedString:
+  value=/[^\s\n,"()0-9]([^\n,"()]*[^\s\n,"()])?/
+;
+
+DottedIdString:
+  /[a-zA-Z_-][a-zA-Z0-9_\.-]*/
+;
+
+Integer:
+  value=INT
+;
+
+Boolean:
+  value=BOOL
+;
+
+BracketList[ws=' \t\n']:
+  '['
+  items*=ValueExpr[',']
+  ']'
+;
+
+BraceDict[ws=' \t']:
+  '{'
+  pairs*=DictPair[',']
+  '}'
+;
+
+DictPair:
+  (key=KeyExpr) '=' (value=ValueExpr)
+;

@@ -2,9 +2,9 @@ from pathlib import PurePath
 from typing import List, Optional, Union
 
 from scone.default.utensils.basic_utensils import SimpleExec
-from scone.head import Recipe
 from scone.head.exceptions import CookingError
 from scone.head.kitchen import Kitchen, current_recipe
+from scone.head.recipe import Recipe
 
 
 class ExecutionFailure(CookingError):
@@ -47,8 +47,8 @@ async def exec_no_fails(
             raise ExecutionFailure(
                 args,
                 working_dir,
-                recipe.get_host(),
-                recipe.get_user(kitchen.head),
+                recipe.recipe_context.sous,
+                recipe.recipe_context.user,
                 result,
             )
         else:

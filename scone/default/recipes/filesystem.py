@@ -12,9 +12,9 @@ from scone.default.utensils.basic_utensils import (
     Stat,
 )
 from scone.default.utensils.dynamic_dependencies import HasChangedInSousStore
-from scone.head import Head, Recipe
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type, check_type_opt
 
 
@@ -28,7 +28,7 @@ class DeclareFile(Recipe):
     _NAME = "declare-file"
 
     def prepare(self, preparation: Preparation, head: Head):
-        preparation.provides("file", self._args["path"])
+        preparation.provides("file", self.arguments["path"])
 
     async def cook(self, kitchen: Kitchen):
         # mark as tracked.
@@ -45,7 +45,7 @@ class DeclareDirectory(Recipe):
     _NAME = "declare-dir"
 
     def prepare(self, preparation: Preparation, head: Head):
-        preparation.provides("directory", self._args["path"])
+        preparation.provides("directory", self.arguments["path"])
 
     async def cook(self, kitchen: Kitchen):
         # mark as tracked.
@@ -59,8 +59,8 @@ class EnsureDirectory(Recipe):
 
     _NAME = "directory"
 
-    def __init__(self, host: str, slug: str, args: dict, head: "Head"):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
         parents = args.get("parents", 0)
         assert isinstance(parents, int)
 
@@ -74,7 +74,7 @@ class EnsureDirectory(Recipe):
         self.parents = parents
         self.mode = parse_mode(mode, directory=True)
         self._make: List[str] = []
-        self.targ_user = args.get("owner", self.get_user(head))
+        self.targ_user = args.get("owner", recipe_context.user)
         self.targ_group = args.get("group", self.targ_user)
 
     def prepare(self, preparation: Preparation, head: "Head"):
@@ -123,8 +123,8 @@ class ExtractTar(Recipe):
 
     _NAME = "tar-extract"
 
-    def __init__(self, host: str, slug: str, args: dict, head: "Head"):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
         self.tar = check_type(args.get("tar"), str)
         self.dir = check_type(args.get("dir"), str)
@@ -165,8 +165,8 @@ class RunScript(Recipe):
 
     _NAME = "script-run"
 
-    def __init__(self, host: str, slug: str, args: dict, head: "Head"):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
         self.working_dir = check_type(args.get("working_dir"), str)
 
@@ -196,8 +196,8 @@ class CommandOnChange(Recipe):
 
     _NAME = "command-on-change"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
         self.purpose = check_type(args.get("purpose"), str)
         self.command = check_type(args.get("command"), list)
@@ -232,8 +232,8 @@ class GitCheckout(Recipe):
     #     declare SAFE_TO_SKIP. Perhaps we want to stop that unless you opt out?
     #     But oh well for now.
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
         self.repo_src = check_type(args.get("src"), str)
         self.dest_dir = check_type(args.get("dest"), str)
@@ -270,9 +270,7 @@ class GitCheckout(Recipe):
         stat = await k.ut1a(Stat(self.dest_dir), Stat.Result)
         if stat is None:
             # doesn't exist; git init it
-            await exec_no_fails(
-                k, ["git", "init", self.dest_dir], "/"
-            )
+            await exec_no_fails(k, ["git", "init", self.dest_dir], "/")
 
         stat = await k.ut1a(Stat(self.dest_dir), Stat.Result)
         if stat is None:
@@ -283,29 +281,30 @@ class GitCheckout(Recipe):
 
         # add the remote, removing it first to ensure it's what we want
         # don't care if removing fails
-        await k.ut1areq(SimpleExec(["git", "remote", "remove", "scone"], self.dest_dir), SimpleExec.Result)
+        await k.ut1areq(
+            SimpleExec(["git", "remote", "remove", "scone"], self.dest_dir),
+            SimpleExec.Result,
+        )
         await exec_no_fails(
             k, ["git", "remote", "add", "scone", self.repo_src], self.dest_dir
         )
 
         # fetch the latest from the remote
-        await exec_no_fails(
-            k, ["git", "fetch", "scone"], self.dest_dir
-        )
+        await exec_no_fails(k, ["git", "fetch", "scone"], self.dest_dir)
 
         # figure out what ref we want to use
         # TODO(performance): fetch only this ref?
         ref = self.ref or f"scone/{self.branch}"
 
         # switch to that ref
-        await exec_no_fails(
-            k, ["git", "switch", "--detach", ref], self.dest_dir
-        )
+        await exec_no_fails(k, ["git", "switch", "--detach", ref], self.dest_dir)
 
         # if we use submodules
         if self.submodules:
             await exec_no_fails(
-                k, ["git", "submodule", "update", "--init", "--recursive"], self.dest_dir
+                k,
+                ["git", "submodule", "update", "--init", "--recursive"],
+                self.dest_dir,
             )
 
         for expected in self.expect:
@@ -313,10 +312,16 @@ class GitCheckout(Recipe):
             # TODO(performance, low): parallelise these
             stat = await k.ut1a(Stat(expected_path_str), Stat.Result)
             if not stat:
-                raise RuntimeError(f"expected {expected_path_str} to exist but it did not")
+                raise RuntimeError(
+                    f"expected {expected_path_str} to exist but it did not"
+                )
 
             if stat.dir and not expected.endswith("/"):
-                raise RuntimeError(f"expected {expected_path_str} to exist as a file but it is a dir")
+                raise RuntimeError(
+                    f"expected {expected_path_str} to exist as a file but it is a dir"
+                )
 
             if not stat.dir and expected.endswith("/"):
-                raise RuntimeError(f"expected {expected_path_str} to exist as a dir but it is a file")
+                raise RuntimeError(
+                    f"expected {expected_path_str} to exist as a dir but it is a file"
+                )

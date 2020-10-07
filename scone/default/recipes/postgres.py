@@ -1,17 +1,17 @@
 from scone.default.utensils.db_utensils import PostgresTransaction
-from scone.head import Head, Recipe
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type
 
 
 class PostgresDatabase(Recipe):
     _NAME = "pg-db"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
-        self.database_name = slug
+        self.database_name = check_type(args.get("name"), str)
         self.owner = check_type(args.get("owner"), str)
         self.encoding = args.get("encoding", "utf8")
         self.collate = args.get("collate", "en_GB.utf8")
@@ -56,10 +56,10 @@ class PostgresDatabase(Recipe):
 class PostgresUser(Recipe):
     _NAME = "pg-user"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
-        self.user_name = slug
+        self.user_name = check_type(args.get("name"), str)
         self.password = check_type(args.get("password"), str)
 
     def prepare(self, preparation: Preparation, head: Head) -> None:

@@ -1,12 +1,11 @@
 from pathlib import Path
-from typing import Tuple, List
+from typing import List, Tuple
 
-from scone.default.recipes.apt import AptPackage
 from scone.default.steps.basic_steps import exec_no_fails
 from scone.default.steps.filesystem_steps import depend_remote_file
-from scone.head import Head, Recipe
-from scone.head.kitchen import Kitchen
-from scone.head.recipe import Preparation
+from scone.head.head import Head
+from scone.head.kitchen import Kitchen, Preparation
+from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type
 
 
@@ -20,8 +19,8 @@ class PythonVenv(Recipe):
 
     _NAME = "python-venv"
 
-    def __init__(self, host: str, slug: str, args: dict, head: Head):
-        super().__init__(host, slug, args, head)
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
 
         self.dir = check_type(args.get("dir"), str)
         self.interpreter = check_type(args.get("interpreter"), str)
@@ -39,31 +38,29 @@ class PythonVenv(Recipe):
 
     def prepare(self, preparation: Preparation, head: Head):
         super().prepare(preparation, head)
-        preparation.needs("dir", str(Path(self.dir).parent))
+        preparation.needs("directory", str(Path(self.dir).parent))
 
         for name, flags in self.install:
             if "-r" in flags:
                 preparation.needs("file", name)
             elif "git" in flags or "dir" in flags:
-                preparation.needs("dir", name)
+                preparation.needs("directory", name)
 
         final_script = str(Path(self.dir, "bin/python"))
+
         preparation.provides("file", str(final_script))
 
         if not self.no_apt_install:
-            preparation.subrecipe(
-                AptPackage(
-                    self.get_host(), "@venv-apt", {"packages": ["python3-venv"]}, head
-                )
-            )
-            preparation.needs("apt-stage", "packages-installed")
+            # preparation.subrecipe(
+            #     AptPackage(self.recipe_context, {"packages": ["python3-venv"]})
+            # )
+            # preparation.needs("apt-stage", "packages-installed")
+            preparation.needs("apt-package", "python3-venv")
 
     async def cook(self, kitchen: Kitchen):
         dt = kitchen.get_dependency_tracker()
 
-        await exec_no_fails(
-            kitchen, [self.interpreter, "-m", "venv", self.dir], "/"
-        )
+        await exec_no_fails(kitchen, [self.interpreter, "-m", "venv", self.dir], "/")
 
         install_args = []
         for name, flags in self.install:
