@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from asyncio import Future, Queue
-from collections import defaultdict, deque
+from collections import deque
 from contextvars import ContextVar
 from typing import Any, Deque, Dict, Optional, Tuple, Type, TypeVar
 
@@ -111,9 +111,7 @@ class Kitchen:
     ):
         self._chanproheads: Dict[Tuple[str, str], Future[ChanProHead]] = dict()
         self._dependency_store = dependency_store
-        self._dependency_trackers: Dict[Recipe, DependencyTracker] = defaultdict(
-            lambda: DependencyTracker(DependencyBook(), head.dag)
-        )
+        self._dependency_trackers: Dict[Recipe, DependencyTracker] = dict()
         self.head = head
         self.last_updated_ats: Dict[Resource, int] = dict()
         self._cookable: Queue[Optional[Vertex]] = Queue()
@@ -207,6 +205,9 @@ class Kitchen:
                 meta.state = RecipeState.BEING_COOKED
                 current_recipe.set(next_job)
                 eprint(f"cooking {next_job}")
+                self._dependency_trackers[next_job] = DependencyTracker(
+                    DependencyBook(), dag, next_job
+                )
                 await next_job.cook(self)
                 eprint(f"cooked {next_job}")
                 # TODO cook

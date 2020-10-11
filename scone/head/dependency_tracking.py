@@ -98,9 +98,10 @@ cattr.global_converter.register_structure_hook(
 
 
 class DependencyTracker:
-    def __init__(self, book: DependencyBook, dag: "RecipeDag"):
+    def __init__(self, book: DependencyBook, dag: "RecipeDag", recipe: "Recipe"):
         self.book: DependencyBook = book
-        self._dag: RecipeDag = dag
+        self._dag: "RecipeDag" = dag
+        self._recipe: "Recipe" = recipe
         self._time: int = int(time.time() * 1000)
 
     def watch(self, resource: Resource) -> None:
@@ -119,12 +120,13 @@ class DependencyTracker:
         # self._vars[variable] = value
         raise NotImplementedError("time")
 
-    def register_fridge_file(self, path: str):
+    def register_fridge_file(self, desugared_path: str):
         # TODO this is not complete
-        fridge_res = Resource("fridge", path, None)
+        fridge_res = Resource("fridge", desugared_path, None)
         self.watch(fridge_res)
 
-    def register_remote_file(self, path: str, sous: str):
+    def register_remote_file(self, path: str, sous: Optional[str] = None):
+        sous = sous or self._recipe.recipe_context.sous
         # TODO this is not complete
         file_res = Resource("file", path, sous=sous)
         self.watch(file_res)
