@@ -21,7 +21,7 @@ RecipeOrSubBlock:
 SubBlock[ws=' \t']:
   unique_id=ID '{' human=/.*$/ /\n/+
   block=Block
-  '}'
+  '}' /\n/+
 ;
 
 
