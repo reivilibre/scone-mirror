@@ -30,9 +30,11 @@ class FridgeCopy(Recipe):
     def __init__(self, recipe_context: RecipeContext, args: dict, head: Head):
         super().__init__(recipe_context, args, head)
 
-        fp = fridge_steps.search_in_fridge(head, args["src"])
-        if fp is None:
+        search = fridge_steps.search_in_fridge(head, args["src"])
+        if search is None:
             raise ValueError(f"Cannot find {args['src']} in the fridge.")
+
+        desugared_src, fp = search
 
         unextended_path_str, meta = fridge_steps.decode_fridge_extension(str(fp))
         unextended_path = Path(unextended_path_str)
@@ -54,6 +56,8 @@ class FridgeCopy(Recipe):
         self.fridge_meta: FridgeMetadata = meta
         self.mode = parse_mode(mode, directory=False)
 
+        self._desugared_src = desugared_src
+
     def prepare(self, preparation: Preparation, head: Head) -> None:
         super().prepare(preparation, head)
         preparation.provides("file", str(self.destination))
@@ -74,7 +78,7 @@ class FridgeCopy(Recipe):
         # hash_of_data = sha256_bytes(data)
         # k.get_dependency_tracker().register_remote_file(dest_str, hash_of_data)
 
-        k.get_dependency_tracker().register_fridge_file(self.fridge_path)
+        k.get_dependency_tracker().register_fridge_file(self._desugared_src)
 
 
 class Supermarket(Recipe):
