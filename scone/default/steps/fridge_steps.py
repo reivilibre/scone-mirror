@@ -25,7 +25,9 @@ def search_in_dirlist(
     return None
 
 
-def search_in_fridge(head: Head, relative: Union[str, PurePath]) -> Optional[Tuple[str, Path]]:
+def search_in_fridge(
+    head: Head, relative: Union[str, PurePath]
+) -> Optional[Tuple[str, Path]]:
     """
     :param head: Head
     :param relative: Relative fridge path
@@ -34,7 +36,11 @@ def search_in_fridge(head: Head, relative: Union[str, PurePath]) -> Optional[Tup
     fridge_dirs = get_fridge_dirs(head)
     # TODO(feature): try sous and group-prefixed paths, and return the desugared
     #   path alongside.
-    return str(relative), search_in_dirlist(fridge_dirs, relative)
+    final = search_in_dirlist(fridge_dirs, relative)
+    if final:
+        return str(relative), final
+    else:
+        return None
 
 
 class FridgeMetadata(Enum):
