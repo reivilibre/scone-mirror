@@ -336,11 +336,13 @@ class MenuLoader:
                     hierarchical_source=hierarchical_source,  # XXX
                     human=recipe.human,
                 )
-                args = recipe.arguments  # noqa
-                # XXX sub in vars
-                instance: Recipe = recipe_class.new(
-                    context, recipe.arguments, self._head
-                )
+                try:
+                    args = _vars.substitute_in_dict_copy(recipe.arguments)
+                except KeyError as ke:
+                    raise KeyError(
+                        f"When substituting for {hierarchical_source} / {recipe}"
+                    ) from ke
+                instance: Recipe = recipe_class.new(context, args, self._head)
                 self._recipes[recipe][(sous, for_indices)] = instance
                 self._dag.add(instance)
 

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, NamedTuple, Optional
 
@@ -131,14 +132,14 @@ class Variables:
                 self.set_dotted(var_name, sub_val)
                 return sub_val
             else:
-                raise KeyError(f"No variable '{incoming}'")
+                raise KeyError(f"No variable '{var_name}'")
 
         out = ""
         for part in parsed:
             if part.kind == "literal":
                 out += part.value
             elif part.kind == "variable":
-                var_name = parsed[0].value
+                var_name = part.value
                 if self.has_dotted(var_name):
                     out += str(self.get_dotted(var_name))
                 elif var_name in incoming:
@@ -147,7 +148,7 @@ class Variables:
                     self.set_dotted(var_name, sub_val)
                     out += str(sub_val)
                 else:
-                    raise KeyError(f"No variable '{incoming}'")
+                    raise KeyError(f"No variable '{var_name}'")
         return out
 
     def load_vars_with_substitutions(self, incoming: Dict[str, Any]):
@@ -169,6 +170,11 @@ class Variables:
                 self.substitute_inplace_in_dict(v)
             elif isinstance(v, str):
                 dictionary[k] = self.eval(v)
+
+    def substitute_in_dict_copy(self, dictionary: Dict[str, Any]):
+        new_dict = deepcopy(dictionary)
+        self.substitute_inplace_in_dict(new_dict)
+        return new_dict
 
     def toplevel(self):
         return self._vars
