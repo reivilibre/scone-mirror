@@ -311,6 +311,14 @@ class Kitchen:
         if depbook:
             await self._dependency_store.register(recipe, depbook)
 
+    @staticmethod
+    def resource_on_sous(
+        kind: str, id: str, extra_params: Optional[frozendict] = None
+    ) -> Resource:
+        recipe = current_recipe.get()
+        context = recipe.recipe_context
+        return Resource(kind, id, context.sous, extra_params)
+
 
 #
 # @attr.s(auto_attribs=True)
