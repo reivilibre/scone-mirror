@@ -10,11 +10,11 @@ import textx
 
 from scone.head.dag import RecipeDag, Resource
 from scone.head.recipe import RecipeContext
+from scone.head.variables import Variables
 
 if typing.TYPE_CHECKING:
     from scone.head.head import Head
     from scone.head.recipe import Recipe
-    from scone.head.variables import Variables
 
 
 def _load_grammar():
