@@ -69,10 +69,10 @@ class MenuBlock:
 
     user_directive: Optional[str] = None
     sous_directive: Optional[str] = None
-    for_directives: List[ForDirective] = []
-    import_directives: List[str] = []
-    recipe_edges: List[RecipeEdgeDirective] = []
-    resource_edges: List[ResourceEdgeDirective] = []
+    for_directives: List[ForDirective] = attr.ib(factory=list)
+    import_directives: List[str] = attr.ib(factory=list)
+    recipe_edges: List[RecipeEdgeDirective] = attr.ib(factory=list)
+    resource_edges: List[ResourceEdgeDirective] = attr.ib(factory=list)
 
 
 @attr.s(auto_attribs=True, eq=False)
@@ -89,9 +89,9 @@ class MenuRecipe:
 
     user_directive: Optional[str] = None
     sous_directive: Optional[str] = None
-    for_directives: List[ForDirective] = []
-    recipe_edges: List[RecipeEdgeDirective] = []
-    resource_edges: List[ResourceEdgeDirective] = []
+    for_directives: List[ForDirective] = attr.ib(factory=list)
+    recipe_edges: List[RecipeEdgeDirective] = attr.ib(factory=list)
+    resource_edges: List[ResourceEdgeDirective] = attr.ib(factory=list)
 
 
 def convert_textx_value(txvalue) -> Any:
