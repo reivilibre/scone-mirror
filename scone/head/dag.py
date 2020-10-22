@@ -30,6 +30,9 @@ class RecipeState(Enum):
     # This recipe has not been cooked because it didn't need to be.
     SKIPPED = 10
 
+    # This recipe failed.
+    FAILED = -1
+
     @staticmethod
     def is_completed(state):
         return state in (RecipeState.COOKED, RecipeState.SKIPPED)
