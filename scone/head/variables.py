@@ -1,6 +1,6 @@
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Set
 
 ExpressionPart = NamedTuple("ExpressionPart", [("kind", str), ("value", str)])
 
@@ -178,3 +178,9 @@ class Variables:
 
     def toplevel(self):
         return self._vars
+
+    def keys(self) -> Set[str]:
+        keys = set(self._vars.keys())
+        if self._delegate:
+            keys.update(self._delegate.keys())
+        return keys

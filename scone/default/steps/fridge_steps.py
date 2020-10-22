@@ -2,7 +2,7 @@ from enum import Enum
 from pathlib import Path, PurePath
 from typing import List, Optional, Tuple, Union
 
-from jinja2 import Template
+from jinja2 import Template, Environment, FileSystemLoader, DictLoader
 
 from scone.head.head import Head
 from scone.head.kitchen import Kitchen
@@ -77,10 +77,27 @@ async def load_and_transform(
         data = head.secret_access.decrypt_bytes(data)
     elif meta == FridgeMetadata.TEMPLATE:
         # pass through Jinja2
-        template = Template(data.decode())
-        proxies = kitchen.get_dependency_tracker().get_j2_compatible_dep_var_proxies(
-            head.variables[sous]
-        )
-        data = template.render(proxies).encode()
+        try:
+            env = Environment(
+                loader=DictLoader({
+                    str(fullpath): data.decode()
+                }),
+                autoescape=False
+            )
+            template = env.get_template(str(fullpath))
+            proxies = kitchen.get_dependency_tracker().get_j2_compatible_dep_var_proxies(
+                head.variables[sous]
+            )
+            data = template.render(proxies).encode()
+        except Exception as e:
+            raise RuntimeError(f"Error templating: {fullpath}") from e
+
+        # try:
+        #     return jinja2.utils.concat(
+        #         template.root_render_func(template.new_context(proxies))
+        #     )
+        # except Exception:
+        #     template.environment.handle_exception()
+
     print("data", fullpath, data)
     return data
