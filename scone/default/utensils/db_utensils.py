@@ -12,7 +12,8 @@ class PostgresTransaction(Utensil):
     async def execute(self, channel: Channel, worktop: Worktop) -> None:
         import asyncpg
 
-        async with asyncpg.connect(database=self.database) as conn:
+        conn = await asyncpg.connect(database=self.database)
+        try:
             async with conn.transaction():
                 while True:
                     query, *args = await channel.recv()
@@ -23,3 +24,5 @@ class PostgresTransaction(Utensil):
                     ]
 
                     await channel.send(results)
+        finally:
+            await conn.close()
