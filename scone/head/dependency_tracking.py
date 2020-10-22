@@ -134,7 +134,7 @@ class DependencyTracker:
         file_res = Resource("file", path, sous=sous)
         self.watch(file_res)
 
-    def get_j2_compatible_dep_var_proxies(
+    def get_j2_var_proxies(
         self, variables: Variables
     ) -> Dict[str, "DependencyVarProxy"]:
         result = {}

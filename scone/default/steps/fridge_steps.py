@@ -2,7 +2,7 @@ from enum import Enum
 from pathlib import Path, PurePath
 from typing import List, Optional, Tuple, Union
 
-from jinja2 import Template, Environment, FileSystemLoader, DictLoader
+from jinja2 import DictLoader, Environment
 
 from scone.head.head import Head
 from scone.head.kitchen import Kitchen
@@ -79,13 +79,10 @@ async def load_and_transform(
         # pass through Jinja2
         try:
             env = Environment(
-                loader=DictLoader({
-                    str(fullpath): data.decode()
-                }),
-                autoescape=False
+                loader=DictLoader({str(fullpath): data.decode()}), autoescape=False
             )
             template = env.get_template(str(fullpath))
-            proxies = kitchen.get_dependency_tracker().get_j2_compatible_dep_var_proxies(
+            proxies = kitchen.get_dependency_tracker().get_j2_var_proxies(
                 head.variables[sous]
             )
             data = template.render(proxies).encode()
