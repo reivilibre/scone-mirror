@@ -208,7 +208,11 @@ class Kitchen:
                 self._dependency_trackers[next_job] = DependencyTracker(
                     DependencyBook(), dag, next_job
                 )
-                await next_job.cook(self)
+                try:
+                    await next_job.cook(self)
+                except Exception as e:
+                    meta.state = RecipeState.FAILED
+                    raise RuntimeError(f"Recipe {next_job} failed!") from e
                 eprint(f"cooked {next_job}")
                 # TODO cook
                 # TODO store depbook

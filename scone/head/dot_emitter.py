@@ -5,13 +5,14 @@ from scone.head.dag import RecipeDag, RecipeState, Resource, Vertex
 from scone.head.recipe import Recipe, recipe_name_getter
 
 state_to_colour = {
-    RecipeState.LOADED: "#000000",
-    RecipeState.PREPARED: "azure",
-    RecipeState.PENDING: "pink",
-    RecipeState.COOKABLE: "gold",
-    RecipeState.COOKED: "darkolivegreen1",
-    RecipeState.SKIPPED: "cadetblue1",
-    RecipeState.BEING_COOKED: "darkorange1",
+    RecipeState.LOADED: ("white", "black"),
+    RecipeState.PREPARED: ("azure", "black"),
+    RecipeState.PENDING: ("pink", "black"),
+    RecipeState.COOKABLE: ("gold", "black"),
+    RecipeState.COOKED: ("darkolivegreen1", "black"),
+    RecipeState.SKIPPED: ("cadetblue1", "black"),
+    RecipeState.BEING_COOKED: ("darkorange1", "black"),
+    RecipeState.FAILED: ("black", "orange"),
 }
 
 
@@ -32,10 +33,10 @@ def emit_dot(dag: RecipeDag, path_out: Path) -> None:
                     f"{recipe_name_getter(vertex.__class__)}"
                     f" [{rec_meta.incoming_uncompleted}]"
                 )
-                colour = state_to_colour[rec_meta.state]
+                colour, text_colour = state_to_colour[rec_meta.state]
                 fout.write(
                     f'\t{vertex_id} [shape=box, label="{label}",'
-                    f" style=filled, fillcolor={colour}];\n"
+                    f" style=filled, fontcolor={text_colour}, fillcolor={colour}];\n"
                 )
             elif isinstance(vertex, Resource):
                 label = str(vertex).replace("\\", "\\\\").replace('"', '\\"')

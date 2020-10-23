@@ -10,11 +10,11 @@ import textx
 
 from scone.head.dag import RecipeDag, Resource
 from scone.head.recipe import RecipeContext
+from scone.head.variables import Variables
 
 if typing.TYPE_CHECKING:
     from scone.head.head import Head
     from scone.head.recipe import Recipe
-    from scone.head.variables import Variables
 
 
 def _load_grammar():
@@ -69,10 +69,10 @@ class MenuBlock:
 
     user_directive: Optional[str] = None
     sous_directive: Optional[str] = None
-    for_directives: List[ForDirective] = []
-    import_directives: List[str] = []
-    recipe_edges: List[RecipeEdgeDirective] = []
-    resource_edges: List[ResourceEdgeDirective] = []
+    for_directives: List[ForDirective] = attr.ib(factory=list)
+    import_directives: List[str] = attr.ib(factory=list)
+    recipe_edges: List[RecipeEdgeDirective] = attr.ib(factory=list)
+    resource_edges: List[ResourceEdgeDirective] = attr.ib(factory=list)
 
 
 @attr.s(auto_attribs=True, eq=False)
@@ -89,9 +89,9 @@ class MenuRecipe:
 
     user_directive: Optional[str] = None
     sous_directive: Optional[str] = None
-    for_directives: List[ForDirective] = []
-    recipe_edges: List[RecipeEdgeDirective] = []
-    resource_edges: List[ResourceEdgeDirective] = []
+    for_directives: List[ForDirective] = attr.ib(factory=list)
+    recipe_edges: List[RecipeEdgeDirective] = attr.ib(factory=list)
+    resource_edges: List[ResourceEdgeDirective] = attr.ib(factory=list)
 
 
 def convert_textx_value(txvalue) -> Any:
@@ -336,11 +336,13 @@ class MenuLoader:
                     hierarchical_source=hierarchical_source,  # XXX
                     human=recipe.human,
                 )
-                args = recipe.arguments  # noqa
-                # XXX sub in vars
-                instance: Recipe = recipe_class.new(
-                    context, recipe.arguments, self._head
-                )
+                try:
+                    args = _vars.substitute_in_dict_copy(recipe.arguments)
+                except KeyError as ke:
+                    raise KeyError(
+                        f"When substituting for {hierarchical_source} / {recipe}"
+                    ) from ke
+                instance: Recipe = recipe_class.new(context, args, self._head)
                 self._recipes[recipe][(sous, for_indices)] = instance
                 self._dag.add(instance)
 

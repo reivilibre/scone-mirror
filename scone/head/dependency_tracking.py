@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from copy import deepcopy
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
 
@@ -12,6 +13,7 @@ from aiosqlite import Connection
 
 from scone.head.dag import Resource
 from scone.head.recipe import recipe_name_getter
+from scone.head.variables import Variables
 
 if TYPE_CHECKING:
     from scone.head.dag import RecipeDag
@@ -118,7 +120,8 @@ class DependencyTracker:
 
     def register_variable(self, variable: str, value: Union[dict, str, int]):
         # self._vars[variable] = value
-        raise NotImplementedError("time")
+        # TODO(implement)
+        logger.critical("not implemented: register var %s", variable)
 
     def register_fridge_file(self, desugared_path: str):
         # TODO this is not complete
@@ -131,19 +134,48 @@ class DependencyTracker:
         file_res = Resource("file", path, sous=sous)
         self.watch(file_res)
 
-    # def get_j2_compatible_dep_var_proxies(
-    #     self, variables: Variables
-    # ) -> Dict[str, "DependencyVarProxy"]:
-    #     # XXX BROKEN does not work for overrides
-    #     result = {}
-    #
-    #     if len("1"):
-    #         raise NotImplementedError("BROKEN")
-    #
-    #     for key, vars in variables.toplevel().items():
-    #         result[key] = DependencyVarProxy(self, vars, key + ".")
-    #
-    #     return result
+    def get_j2_var_proxies(
+        self, variables: Variables
+    ) -> Dict[str, "DependencyVarProxy"]:
+        result = {}
+
+        for key in variables.toplevel():
+            result[key] = DependencyVarProxy(key, variables, self)
+
+        return result
+
+
+class DependencyVarProxy:
+    def __init__(
+        self,
+        current_path_prefix: Optional[str],
+        vars: Variables,
+        tracker: DependencyTracker,
+    ):
+        self._current_path_prefix = current_path_prefix
+        self._vars = vars
+        self._tracker = tracker
+
+    def raw_(self) -> Dict[str, Any]:
+        if not self._current_path_prefix:
+            raw_dict = self._vars.toplevel()
+        else:
+            raw_dict = self._vars.get_dotted(self._current_path_prefix)
+        self._tracker.register_variable(self._current_path_prefix or "", raw_dict)
+        return deepcopy(raw_dict)
+
+    def __getattr__(self, name: str) -> Union["DependencyVarProxy", Any]:
+        if not self._current_path_prefix:
+            dotted_path = name
+        else:
+            dotted_path = f"{self._current_path_prefix}.{name}"
+        raw_value = self._vars.get_dotted(dotted_path)
+
+        if isinstance(raw_value, dict):
+            return DependencyVarProxy(dotted_path, self._vars, self._tracker)
+        else:
+            self._tracker.register_variable(dotted_path, raw_value)
+            return raw_value
 
 
 class DependencyCache:
