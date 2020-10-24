@@ -34,6 +34,7 @@ async def open_ssh_sous(
     else:
         opts = SSHClientConnectionOptions(username=user)
 
+    logger.debug("Connecting to %s[%s]@%s over SSH...", user, requested_user, host)
     conn: SSHClientConnection = await asyncssh.connect(host, options=opts)
 
     if requested_user != user:
@@ -50,17 +51,12 @@ async def open_ssh_sous(
 
     process: SSHClientProcess = await conn.create_process(command, encoding=None)
 
-    logger.debug("Constructing AsyncSSHChanPro...")
     cp = AsyncSSHChanPro(conn, process)
-    logger.debug("Creating root channel...")
     ch = cp.new_channel(number=0, desc="Root channel")
     cp.start_listening_to_channels(default_route=None)
-    logger.debug("Sending head hello...")
     await ch.send({"hello": "head"})
-    logger.debug("Waiting for sous hello...")
+    logger.debug("Waiting for sous hello from %s[%s]@%s...", user, requested_user, host)
     sous_hello = await ch.recv()
-    logger.debug("Got sous hello... checking")
     assert isinstance(sous_hello, dict)
     assert sous_hello["hello"] == "sous"
-    logger.debug("Valid sous hello...")
     return cp, ch
