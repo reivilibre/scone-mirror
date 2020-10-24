@@ -14,6 +14,8 @@ class SystemdUnit(Recipe):
     System unit.
     TODO(performance): make it collapsible in a way so that it can daemon-reload
         only once in most situations.
+
+    TODO(performance): deduplication.
     """
 
     _NAME = "systemd"
