@@ -1,12 +1,12 @@
-import docker.errors
 import attr
+import docker.errors
 
 from scone.common.chanpro import Channel
 from scone.sous import Utensil
 from scone.sous.utensils import Worktop
 
-
 _docker_client_instance = None
+
 
 def _docker_client():
     global _docker_client_instance
@@ -26,7 +26,9 @@ class DockerContainerRun(Utensil):
 
     async def execute(self, channel: Channel, worktop: Worktop):
         try:
-            container = _docker_client().containers.run(self.image, self.command, detach=True)
+            container = _docker_client().containers.run(
+                self.image, self.command, detach=True
+            )
 
         except docker.errors.ImageNotFound:
             # specified image does not exist (or requires login)
@@ -37,8 +39,4 @@ class DockerContainerRun(Utensil):
             await channel.send(None)
             return
 
-        await channel.send(
-            DockerContainerRun.Result(
-                name=container.name
-            )
-        )
+        await channel.send(DockerContainerRun.Result(name=container.name))

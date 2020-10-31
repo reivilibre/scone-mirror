@@ -1,8 +1,7 @@
+from scone.default.utensils.docker_utensils import DockerContainerRun
 from scone.head.kitchen import Kitchen
 from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type
-
-from scone.default.utensils.docker_utensils import DockerContainerRun
 
 
 class DockerContainer(Recipe):
@@ -16,4 +15,6 @@ class DockerContainer(Recipe):
 
     async def cook(self, kitchen: Kitchen) -> None:
         kitchen.get_dependency_tracker()
-        await kitchen.ut1areq(DockerContainerRun(self.image, self.command), DockerContainerRun.Result)
+        await kitchen.ut1areq(
+            DockerContainerRun(self.image, self.command), DockerContainerRun.Result
+        )
