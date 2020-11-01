@@ -5,7 +5,9 @@ from typing import Any, Dict, List, NamedTuple, Optional, Set
 ExpressionPart = NamedTuple("ExpressionPart", [("kind", str), ("value", str)])
 
 
-def flatten_dict(nested: Dict[str, Any]) -> Dict[str, Any]:
+def flatten_dict(
+    nested: Dict[str, Any], discard_empty_dicts: bool = False
+) -> Dict[str, Any]:
     for key in nested:
         if not isinstance(key, str):
             # not possible to flatten
@@ -14,7 +16,7 @@ def flatten_dict(nested: Dict[str, Any]) -> Dict[str, Any]:
     flat = {}
 
     for key, value in nested.items():
-        if isinstance(value, dict) and value:
+        if isinstance(value, dict) and (discard_empty_dicts or value):
             sub_flat = flatten_dict(value)
             for k in sub_flat:
                 if not isinstance(k, str):
@@ -81,7 +83,7 @@ def merge_right_into_left_inplace(left: dict, right: dict):
         if isinstance(value, dict) and key in left and isinstance(left[key], dict):
             merge_right_into_left_inplace(left[key], value)
         else:
-            left[key] = value
+            left[key] = deepcopy(value)
 
 
 class Variables:
@@ -94,6 +96,8 @@ class Variables:
         keys = name.split(".")
         try:
             for k in keys:
+                if not isinstance(current, dict):
+                    raise ValueError(f"non-dictionary encountered when getting {name}")
                 current = current[k]
             return current
         except KeyError:
@@ -152,10 +156,13 @@ class Variables:
         return out
 
     def load_vars_with_substitutions(self, incoming: Dict[str, Any]):
-        incoming = flatten_dict(incoming)
+        incoming = flatten_dict(incoming, discard_empty_dicts=True)
         while incoming:
             key, expr = incoming.popitem()
-            value = self._eval_with_incoming(expr, incoming)
+            if isinstance(expr, str):
+                value = self._eval_with_incoming(expr, incoming)
+            else:
+                value = expr
             self.set_dotted(key, value)
 
     def eval(self, expr: str) -> Any:
