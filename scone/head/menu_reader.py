@@ -1,12 +1,13 @@
 import logging
 import os
 import typing
-from collections import defaultdict
+from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple, Union
 
 import attr
 import textx
+from attr import attrs
 
 from scone.head.dag import RecipeDag, Resource
 from scone.head.recipe import RecipeContext
@@ -57,7 +58,7 @@ class ResourceEdgeDirective:
     resource: Resource
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False)
 class MenuBlock:
     id: Optional[None]
 
@@ -138,6 +139,16 @@ def convert_textx_recipe(txrecipe_or_subblock, parent: Optional[MenuBlock]):
                 recipe.user_directive = directive.user
             elif isinstance(directive, scoml_classes["SousDirective"]):
                 recipe.user_directive = directive.sous
+            elif isinstance(directive, scoml_classes["ResourceEdgeDirective"]):
+                recipe.resource_edges.append(
+                    ResourceEdgeDirective(
+                        directive.kind[1:], convert_textx_resource(directive.resource)
+                    )
+                )
+            elif isinstance(directive, scoml_classes["RecipeEdgeDirective"]):
+                recipe.recipe_edges.append(
+                    RecipeEdgeDirective(directive.kind[1:], directive.id)
+                )
             else:
                 raise ValueError(f"Unknown directive {directive}")
 
@@ -238,6 +249,28 @@ class MenuLoader:
         """
         # TODO(feature): need to think about scoping rules and then figure
         #  this one out
+
+        # TEMPORARY, UNSTABLE TODO(stabilise) resolution rules
+        #   need to consider resolution between files, and IDless resolution
+
+        # get the root ancestor of the referrer
+        a: Union[MenuBlock, MenuRecipe] = referrer
+        while a.parent is not None:
+            a = a.parent
+
+        to_visit: Deque[Union[MenuBlock, MenuRecipe]] = deque()
+        to_visit.append(a)
+
+        while to_visit:
+            next_node = to_visit.popleft()
+
+            if next_node.id == reference:
+                return next_node
+
+            if isinstance(next_node, MenuBlock):
+                for child in next_node.contents:
+                    to_visit.append(child)
+
         return None
 
     def _get_first_common_ancestor(
@@ -389,6 +422,8 @@ class MenuLoader:
         fors: Tuple[ForDirective, ...],
         applicable_souss: Iterable[str],
     ):
+        # TODO(feature): add edges
+
         # add fors
         fors = fors + tuple(recipe.for_directives)
 
@@ -400,6 +435,36 @@ class MenuLoader:
             for _vars, for_indices in self._for_apply(fors, sous_vars, tuple()):
                 instance = self._recipes[recipe][(sous, for_indices)]  # noqa
 
+                for recipe_edge in recipe.recipe_edges:
+                    target = self.resolve_ref(recipe, recipe_edge.recipe_id)
+
+                    if isinstance(target, MenuBlock):
+                        # TODO(feature)
+                        raise NotImplementedError(
+                            "@after/@before on block is not yet here sadly"
+                        )
+                    elif isinstance(target, MenuRecipe):
+                        for target_instance in self.get_related_instances(
+                            sous, for_indices, recipe, target
+                        ):
+                            if recipe_edge.kind == "after":
+                                self._dag.add_ordering(target_instance, instance)
+                            elif recipe_edge.kind == "before":
+                                self._dag.add_ordering(instance, target_instance)
+
+                for resource_edge in recipe.resource_edges:
+                    resource = resource_edge.resource
+
+                    if resource.sous == "(self)":
+                        resource = attr.evolve(resource, sous=sous)
+
+                    if resource_edge.kind == "needs":
+                        self._dag.needs(instance, resource)
+                    elif resource_edge.kind == "wants":
+                        self._dag.needs(instance, resource, soft_wants=True)
+                    elif resource_edge.kind == "provides":
+                        self._dag.provides(instance, resource)
+
                 # XXX apply specific edges here including those from parent
 
     def postdagify_block(
@@ -409,6 +474,8 @@ class MenuLoader:
         applicable_souss: Iterable[str],
     ):
         # XXX pass down specific edges here
+
+        # TODO(feature): add edges
 
         fors = fors + tuple(block.for_directives)
 
