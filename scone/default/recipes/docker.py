@@ -1,5 +1,6 @@
 from scone.default.utensils.docker_utensils import (
     DockerContainerRun,
+    DockerVolumeCreate,
     DockerNetworkCreate,
 )
 from scone.head.kitchen import Kitchen
@@ -23,9 +24,22 @@ class DockerContainer(Recipe):
         )
 
 
+class DockerVolume(Recipe):
+    _NAME = "docker-volume"
+    
+    def __init__(self, recipe_context: RecipeContext, args: dict, head):
+        super().__init__(recipe_context, args, head)
+
+        self.name = check_type(args.get("name"), str)
+        
+    async def cook(self, kitchen: Kitchen) -> None:
+        kitchen.get_dependency_tracker()
+        await kitchen.ut1areq(DockerVolumeCreate(self.name), DockerVolumeCreate.Result)
+
+
 class DockerNetwork(Recipe):
     _NAME = "docker-network"
-
+    
     def __init__(self, recipe_context: RecipeContext, args: dict, head):
         super().__init__(recipe_context, args, head)
 
@@ -51,3 +65,4 @@ class DockerNetwork(Recipe):
             ),
             DockerNetworkCreate.Result,
         )
+        
