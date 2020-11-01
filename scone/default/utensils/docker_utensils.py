@@ -1,3 +1,5 @@
+from typing import Optional
+
 import attr
 import docker.errors
 
@@ -45,11 +47,11 @@ class DockerContainerRun(Utensil):
 @attr.s(auto_attribs=True)
 class DockerNetworkCreate(Utensil):
     name: str
-    check_duplicate: bool
-    internal: bool
-    enable_ipv6: bool
-    attachable: bool
-    ingress: bool
+    check_duplicate: Optional[bool]
+    internal: Optional[bool]
+    enable_ipv6: Optional[bool]
+    attachable: Optional[bool]
+    ingress: Optional[bool]
 
     @attr.s(auto_attribs=True)
     class Result:
@@ -63,7 +65,7 @@ class DockerNetworkCreate(Utensil):
                 internal=self.internal,
                 enable_ipv6=self.enable_ipv6,
                 attachable=self.attachable,
-                ingress=self.ingress
+                ingress=self.ingress,
             )
 
         except docker.errors.APIError:

@@ -1,4 +1,7 @@
-from scone.default.utensils.docker_utensils import DockerContainerRun, DockerNetworkCreate
+from scone.default.utensils.docker_utensils import (
+    DockerContainerRun,
+    DockerNetworkCreate,
+)
 from scone.head.kitchen import Kitchen
 from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type, check_type_opt
@@ -35,7 +38,6 @@ class DockerNetwork(Recipe):
         self.scope = check_type_opt(args.get("scope"), str)
         self.ingress = check_type_opt(args.get("ingress"), bool)
 
-
     async def cook(self, kitchen: Kitchen) -> None:
         kitchen.get_dependency_tracker()
         await kitchen.ut1areq(
@@ -45,6 +47,7 @@ class DockerNetwork(Recipe):
                 self.internal,
                 self.enable_ipv6,
                 self.attachable,
-                self.ingress),
-            DockerNetworkCreate.Result
+                self.ingress,
+            ),
+            DockerNetworkCreate.Result,
         )
