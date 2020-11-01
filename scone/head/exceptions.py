@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Scone.  If not, see <https://www.gnu.org/licenses/>.
 
+
 class CookingError(Exception):
     """
     Error in cooking.

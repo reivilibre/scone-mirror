@@ -1,8 +1,8 @@
 from scone.default.utensils.docker_utensils import (
     DockerContainerRun,
     DockerImagePull,
-    DockerVolumeCreate,
     DockerNetworkCreate,
+    DockerVolumeCreate,
 )
 from scone.head.kitchen import Kitchen
 from scone.head.recipe import Recipe, RecipeContext
@@ -33,7 +33,7 @@ class DockerImage(Recipe):
 
         self.repository = check_type(args.get("repository"), str)
         self.tag = check_type(args.get("tag"), str)
-        
+
     async def cook(self, kitchen: Kitchen) -> None:
         kitchen.get_dependency_tracker()
         await kitchen.ut1areq(
@@ -43,12 +43,12 @@ class DockerImage(Recipe):
 
 class DockerVolume(Recipe):
     _NAME = "docker-volume"
-    
+
     def __init__(self, recipe_context: RecipeContext, args: dict, head):
         super().__init__(recipe_context, args, head)
 
         self.name = check_type(args.get("name"), str)
-        
+
     async def cook(self, kitchen: Kitchen) -> None:
         kitchen.get_dependency_tracker()
         await kitchen.ut1areq(DockerVolumeCreate(self.name), DockerVolumeCreate.Result)
@@ -56,7 +56,7 @@ class DockerVolume(Recipe):
 
 class DockerNetwork(Recipe):
     _NAME = "docker-network"
-    
+
     def __init__(self, recipe_context: RecipeContext, args: dict, head):
         super().__init__(recipe_context, args, head)
 
@@ -68,7 +68,7 @@ class DockerNetwork(Recipe):
         self.attachable = check_type_opt(args.get("attachable"), bool)
         self.scope = check_type_opt(args.get("scope"), str)
         self.ingress = check_type_opt(args.get("ingress"), bool)
-        
+
     async def cook(self, kitchen: Kitchen) -> None:
         kitchen.get_dependency_tracker()
         await kitchen.ut1areq(
