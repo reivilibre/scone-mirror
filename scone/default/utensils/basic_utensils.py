@@ -143,7 +143,10 @@ class HashFile(Utensil):
     path: str
 
     async def execute(self, channel: Channel, worktop: Worktop):
-        sha256 = await asyncio.get_running_loop().run_in_executor(
-            worktop.pools.threaded, sha256_file, self.path
-        )
-        await channel.send(sha256)
+        try:
+            sha256 = await asyncio.get_running_loop().run_in_executor(
+                worktop.pools.threaded, sha256_file, self.path
+            )
+            await channel.send(sha256)
+        except FileNotFoundError:
+            await channel.send(None)
