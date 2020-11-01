@@ -60,6 +60,7 @@ ResourceEdgeDirectiveKind:
 ResourceEdgeDirective[ws=' \t']:
   kind=ResourceEdgeDirectiveKind
   resource=Resource
+  /\n/+
 ;
 
 RecipeEdgeDirectiveKind:
@@ -70,6 +71,7 @@ RecipeEdgeDirective[ws=' \t']:
   kind=RecipeEdgeDirectiveKind
   ':' id=ID
   // TODO 'on other sous' ?
+  /\n/+
 ;
 
 ListenEdgeDirectiveKind:

@@ -96,5 +96,4 @@ async def load_and_transform(
         # except Exception:
         #     template.environment.handle_exception()
 
-    print("data", fullpath, data)
     return data

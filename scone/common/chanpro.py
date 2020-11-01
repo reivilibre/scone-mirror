@@ -74,7 +74,7 @@ class ChanPro:
             idx = 0
             while True:
                 message = await self._recv_dict()
-                logger.debug("<message> %d %r", idx, message)
+                # logger.debug("<message> %d %r", idx, message)
                 idx += 1
                 await self.handle_incoming_message(message, default_route=default_route)
 
