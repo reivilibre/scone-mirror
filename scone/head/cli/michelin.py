@@ -4,11 +4,8 @@ import shutil
 import sys
 import tempfile
 from argparse import ArgumentParser
-from os import fdopen
 from os.path import join
 from pathlib import Path
-from tempfile import mkstemp, mktemp
-from urllib.request import urlretrieve
 
 import requests
 import toml

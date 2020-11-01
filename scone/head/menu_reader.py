@@ -7,7 +7,6 @@ from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple, Union
 
 import attr
 import textx
-from attr import attrs
 
 from scone.head.dag import RecipeDag, Resource
 from scone.head.recipe import RecipeContext

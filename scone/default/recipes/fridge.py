@@ -5,7 +5,6 @@ from asyncio import Future
 from pathlib import Path
 from typing import Dict, cast
 from urllib.parse import urlparse
-from urllib.request import urlretrieve
 
 import requests
 
@@ -148,9 +147,9 @@ class Supermarket(Recipe):
             elif not supermarket_path.exists():
                 note = f"""
     Scone Supermarket
-    
+
     This file corresponds to {self.url}
-    
+
     Downloaded by {self}
     """.strip()
 

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Dict, List, Set, Tuple
+from typing import List
 
 from scone.default.utensils.basic_utensils import SimpleExec
 from scone.head.head import Head
@@ -38,7 +38,8 @@ logger = logging.getLogger(__name__)
 #         preparation.needs("apt-stage", "repositories-declared")
 #         preparation.provides("apt-stage", "packages-installed")
 #
-#     async def _apt_command(self, kitchen: Kitchen, args: List[str]) -> SimpleExec.Result:
+#     async def _apt_command(self, kitchen: Kitchen, args: List[str]) ->
+#     SimpleExec.Result:
 #         # lock_path = "/var/lib/apt/lists/lock"
 #         lock_path = "/var/lib/dpkg/lock"
 #
@@ -81,7 +82,8 @@ logger = logging.getLogger(__name__)
 #             update = await self._apt_command(kitchen, ["apt-get", "-yq", "update"])
 #             if update.exit_code != 0:
 #                 raise RuntimeError(
-#                     f"apt update failed with err {update.exit_code}: {update.stderr!r}"
+#                     f"apt update failed with err {update.exit_code}:
+#                     {update.stderr!r}"
 #                 )
 #
 #             install_args = ["apt-get", "-yq", "install"]
