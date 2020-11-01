@@ -45,6 +45,26 @@ class DockerContainerRun(Utensil):
 
 
 @attr.s(auto_attribs=True)
+class DockerImagePull(Utensil):
+    repository: str
+    tag: str
+
+    @attr.s(auto_attribs=True)
+    class Result:
+        id: str
+
+    async def execute(self, channel: Channel, worktop: Worktop):
+        try:
+            image = _docker_client().images.pull(self.repository, self.tag)
+        except docker.errors.APIError:
+            # the docker server returned an error
+            await channel.send(None)
+            return
+
+        await channel.send(DockerImagePull.Result(id=image.id))
+
+
+@attr.s(auto_attribs=True)
 class DockerVolumeCreate(Utensil):
     name: str
       
