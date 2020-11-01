@@ -1,9 +1,13 @@
 import asyncio
+import logging
+import os
 from asyncio import Future
 from pathlib import Path
 from typing import Dict, cast
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
+
+import requests
 
 from scone.common.misc import sha256_file
 from scone.common.modeutils import DEFAULT_MODE_FILE, parse_mode
@@ -13,11 +17,13 @@ from scone.default.steps.fridge_steps import (
     FridgeMetadata,
     load_and_transform,
 )
-from scone.default.utensils.basic_utensils import Chown, WriteFile
+from scone.default.utensils.basic_utensils import Chmod, Chown, HashFile, WriteFile
 from scone.head.head import Head
 from scone.head.kitchen import Kitchen, Preparation
 from scone.head.recipe import Recipe, RecipeContext
 from scone.head.utils import check_type
+
+logger = logging.getLogger(__name__)
 
 
 class FridgeCopy(Recipe):
@@ -118,6 +124,7 @@ class Supermarket(Recipe):
     def prepare(self, preparation: Preparation, head: "Head"):
         super().prepare(preparation, head)
         preparation.provides("file", str(self.destination))
+        preparation.needs("directory", str(self.destination.parent))
 
     async def cook(self, kitchen: "Kitchen"):
         # need to ensure we download only once, even in a race…
@@ -126,48 +133,82 @@ class Supermarket(Recipe):
             kitchen.head.directory, SUPERMARKET_RELATIVE, self.sha256
         )
 
-        if self.sha256 in Supermarket.in_progress:
-            await Supermarket.in_progress[self.sha256]
-        elif not supermarket_path.exists():
-            note = f"""
-Scone Supermarket
+        logger.debug("Going to hash …")
 
-This file corresponds to {self.url}
+        remote_hash = await kitchen.ut1(HashFile(str(self.destination)))
 
-Downloaded by {self}
-""".strip()
+        logger.debug(
+            "sha256 of %s: want %s have %r", self.destination, self.sha256, remote_hash
+        )
 
-            Supermarket.in_progress[self.sha256] = cast(
-                Future,
-                asyncio.get_running_loop().run_in_executor(
-                    kitchen.head.pools.threaded,
-                    self._download_file,
-                    self.url,
-                    str(supermarket_path),
-                    self.sha256,
-                    note,
-                ),
-            )
+        if remote_hash != self.sha256:
+            if self.sha256 in Supermarket.in_progress:
+                logger.debug("Awaiting existing download")
+                await Supermarket.in_progress[self.sha256]
+            elif not supermarket_path.exists():
+                note = f"""
+    Scone Supermarket
+    
+    This file corresponds to {self.url}
+    
+    Downloaded by {self}
+    """.strip()
 
-        # TODO(perf): load file in another thread
-        with open(supermarket_path, "r") as fin:
-            data = fin.read()
-        chan = await kitchen.start(WriteFile(str(self.destination), self.mode))
-        await chan.send(data)
-        await chan.send(None)
-        if await chan.recv() != "OK":
-            raise RuntimeError(f"WriteFail failed on supermarket to {self.destination}")
+                Supermarket.in_progress[self.sha256] = cast(
+                    Future,
+                    asyncio.get_running_loop().run_in_executor(
+                        kitchen.head.pools.threaded,
+                        self._download_file,
+                        self.url,
+                        str(supermarket_path),
+                        self.sha256,
+                        note,
+                    ),
+                )
+
+                logger.debug("Awaiting new download")
+                await Supermarket.in_progress[self.sha256]
+            else:
+                logger.debug("Already in supermarket.")
+
+            # TODO(perf): load file in another thread
+            # TODO(perf): chunk file
+            with open(supermarket_path, "rb") as fin:
+                data = fin.read()
+            chan = await kitchen.start(WriteFile(str(self.destination), self.mode))
+            await chan.send(data)
+            await chan.send(None)
+            if await chan.recv() != "OK":
+                raise RuntimeError(
+                    f"WriteFail failed on supermarket to {self.destination}"
+                )
 
         await kitchen.ut0(Chown(str(self.destination), self.owner, self.group))
+        await kitchen.ut0(Chmod(str(self.destination), self.mode))
 
     @staticmethod
     def _download_file(url: str, dest_path: str, check_sha256: str, note: str):
-        urlretrieve(url, dest_path)
+        Path(dest_path).parent.mkdir(parents=True, exist_ok=True)
+
+        r = requests.get(url, stream=True)
+        with open(dest_path, "wb") as fp:
+            for chunk in r.iter_content(4 * 1024 * 1024):
+                fp.write(chunk)
+
         real_sha256 = sha256_file(dest_path)
         if real_sha256 != check_sha256:
+            try:
+                os.rename(dest_path, dest_path + ".bad")
+            except Exception:
+                try:
+                    os.unlink(dest_path)
+                except Exception:
+                    pass
+
             raise RuntimeError(
                 f"sha256 hash mismatch {real_sha256} != {check_sha256} (wanted)"
             )
+
         with open(dest_path + ".txt", "w") as fout:
             # leave a note so we can find out what this is if we need to.
             fout.write(note)
