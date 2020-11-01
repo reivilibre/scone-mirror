@@ -40,3 +40,23 @@ class DockerContainerRun(Utensil):
             return
 
         await channel.send(DockerContainerRun.Result(name=container.name))
+
+
+@attr.s(auto_attribs=True)
+class DockerVolumeCreate(Utensil):
+    name: str
+
+    @attr.s(auto_attribs=True)
+    class Result:
+        name: str
+
+    async def execute(self, channel: Channel, worktop: Worktop):
+        try:
+            volume = _docker_client().volume.create(self.name)
+
+        except docker.errors.APIError:
+            # the docker server returned an error
+            await channel.send(None)
+            return
+
+        await channel.send(DockerVolumeCreate.Result(name=volume.name))
