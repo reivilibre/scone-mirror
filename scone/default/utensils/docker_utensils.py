@@ -40,3 +40,35 @@ class DockerContainerRun(Utensil):
             return
 
         await channel.send(DockerContainerRun.Result(name=container.name))
+
+
+@attr.s(auto_attribs=True)
+class DockerNetworkCreate(Utensil):
+    name: str
+    check_duplicate: bool
+    internal: bool
+    enable_ipv6: bool
+    attachable: bool
+    ingress: bool
+
+    @attr.s(auto_attribs=True)
+    class Result:
+        name: str
+
+    async def execute(self, channel: Channel, worktop: Worktop):
+        try:
+            network = _docker_client().networks.create(
+                self.name,
+                check_duplicate=self.check_duplicate,
+                internal=self.internal,
+                enable_ipv6=self.enable_ipv6,
+                attachable=self.attachable,
+                ingress=self.ingress
+            )
+
+        except docker.errors.APIError:
+            # the docker server returned an error
+            await channel.send(None)
+            return
+
+        await channel.send(DockerContainerRun.Result(name=network.name))
