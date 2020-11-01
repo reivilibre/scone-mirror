@@ -136,7 +136,8 @@ setup(
     entry_points={
         'console_scripts': [
             'scone=scone.head.cli:cli',
-            'scone-freezer=scone.head.cli.freezer:cli'
+            'scone-freezer=scone.head.cli.freezer:cli',
+            'michelin=scone.head.cli.michelin:cli'
         ],
     },
     install_requires=REQUIRED,
