@@ -53,7 +53,9 @@ EXTRAS = {
     ],
     "sous": EX_SOUS_ALL,
     "sous-core": EX_SOUS_BASE,
-    "sous-pg": EX_SOUS_PG
+    "sous-pg": EX_SOUS_PG,
+
+    "docker": ["docker"]  # TODO do this more properly if we can...
 }
 
 # The rest you shouldn't have to touch too much :)

@@ -1,7 +1,11 @@
 from typing import Optional
 
 import attr
-import docker.errors
+
+try:
+    import docker.errors
+except ImportError:
+    docker = None
 
 from scone.common.chanpro import Channel
 from scone.sous import Utensil
@@ -67,7 +71,7 @@ class DockerImagePull(Utensil):
 @attr.s(auto_attribs=True)
 class DockerVolumeCreate(Utensil):
     name: str
-      
+
     @attr.s(auto_attribs=True)
     class Result:
         name: str
@@ -79,7 +83,7 @@ class DockerVolumeCreate(Utensil):
             # the docker server returned an error
             await channel.send(None)
             return
-          
+
         await channel.send(DockerVolumeCreate.Result(name=volume.name))
 
 
@@ -91,7 +95,7 @@ class DockerNetworkCreate(Utensil):
     enable_ipv6: Optional[bool]
     attachable: Optional[bool]
     ingress: Optional[bool]
-      
+
     @attr.s(auto_attribs=True)
     class Result:
         name: str
@@ -110,5 +114,5 @@ class DockerNetworkCreate(Utensil):
             # the docker server returned an error
             await channel.send(None)
             return
-          
+
         await channel.send(DockerContainerRun.Result(name=network.name))
