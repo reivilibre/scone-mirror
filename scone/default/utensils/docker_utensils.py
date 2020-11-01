@@ -1,3 +1,5 @@
+from typing import Optional
+
 import attr
 import docker.errors
 
@@ -45,7 +47,7 @@ class DockerContainerRun(Utensil):
 @attr.s(auto_attribs=True)
 class DockerVolumeCreate(Utensil):
     name: str
-
+      
     @attr.s(auto_attribs=True)
     class Result:
         name: str
@@ -53,10 +55,40 @@ class DockerVolumeCreate(Utensil):
     async def execute(self, channel: Channel, worktop: Worktop):
         try:
             volume = _docker_client().volume.create(self.name)
-
         except docker.errors.APIError:
             # the docker server returned an error
             await channel.send(None)
             return
-
+          
         await channel.send(DockerVolumeCreate.Result(name=volume.name))
+
+
+@attr.s(auto_attribs=True)
+class DockerNetworkCreate(Utensil):
+    name: str
+    check_duplicate: Optional[bool]
+    internal: Optional[bool]
+    enable_ipv6: Optional[bool]
+    attachable: Optional[bool]
+    ingress: Optional[bool]
+      
+    @attr.s(auto_attribs=True)
+    class Result:
+        name: str
+
+    async def execute(self, channel: Channel, worktop: Worktop):
+        try:
+            network = _docker_client().networks.create(
+                self.name,
+                check_duplicate=self.check_duplicate,
+                internal=self.internal,
+                enable_ipv6=self.enable_ipv6,
+                attachable=self.attachable,
+                ingress=self.ingress,
+            )
+        except docker.errors.APIError:
+            # the docker server returned an error
+            await channel.send(None)
+            return
+          
+        await channel.send(DockerContainerRun.Result(name=network.name))
